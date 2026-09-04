@@ -1,4 +1,4 @@
-# GPT Menu Bar
+# MiniGPT
 
 Ứng dụng menu bar macOS nhỏ gọn để xem hạn mức Codex và trạng thái phiên Codex
 đang hoạt động.
@@ -40,8 +40,8 @@ Không cần full Xcode. Chạy:
 
 Kết quả:
 
-- `dist/GPT.app`
-- `dist/GPT-0.1.0-macos-universal.zip`
+- `dist/MiniGPT.app`
+- `dist/MiniGPT-0.1.1-macos-universal.zip`
 
 File thực thi hỗ trợ cả Apple Silicon và Intel. Bản hiện tại chỉ được ký ad-hoc,
 chưa có Apple Developer ID và chưa notarize. Khi tải từ Internet, macOS có thể
@@ -49,8 +49,8 @@ yêu cầu nhấp chuột phải vào app và chọn **Open** ở lần mở đ�
 
 ## Đưa lên GitHub Releases
 
-Tạo release mới trên GitHub, ví dụ tag `v0.1.0`, rồi tải file
-`dist/GPT-0.1.0-macos-universal.zip` lên làm release asset.
+Tạo release mới trên GitHub, ví dụ tag `v0.1.1`, rồi tải file
+`dist/MiniGPT-0.1.1-macos-universal.zip` lên làm release asset.
 
 ## Quyền riêng tư
 

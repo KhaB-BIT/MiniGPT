@@ -4,9 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-APP_NAME="GPT"
+APP_NAME="MiniGPT"
 PRODUCT_NAME="ChatBMK"
-APP_VERSION="${VERSION:-0.1.0}"
+APP_VERSION="${VERSION:-0.1.1}"
 DIST_DIR="$PROJECT_ROOT/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 ZIP_PATH="$DIST_DIR/$APP_NAME-$APP_VERSION-macos-universal.zip"

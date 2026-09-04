@@ -64,6 +64,7 @@ final class CodexAppServerClient: @unchecked Sendable {
 
     process.executableURL = executableURL
     process.arguments = ["app-server", "--listen", "stdio://"]
+    process.environment = Self.processEnvironment(for: executableURL)
     process.standardInput = inputPipe
     process.standardOutput = outputPipe
     process.standardError = errorPipe
@@ -102,8 +103,8 @@ final class CodexAppServerClient: @unchecked Sendable {
         method: "initialize",
         params: [
           "clientInfo": [
-            "name": "GPTMenuBar",
-            "version": "0.2.0",
+            "name": "MiniGPTMenuBar",
+            "version": "0.1.1",
           ],
           "capabilities": ["experimentalApi": true],
         ]
@@ -274,22 +275,54 @@ final class CodexAppServerClient: @unchecked Sendable {
   }
 
   private static func findCodexExecutable() throws -> URL {
-    let pathDirectories = ProcessInfo.processInfo.environment["PATH"]?
-      .split(separator: ":")
-      .map(String.init) ?? []
-    let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
-    let candidates = pathDirectories.map { "\($0)/codex" } + [
-      "/opt/homebrew/bin/codex",
-      "/usr/local/bin/codex",
-      "\(homeDirectory)/.local/bin/codex",
-      "\(homeDirectory)/.npm-global/bin/codex",
-      "\(homeDirectory)/.bun/bin/codex",
-      "\(homeDirectory)/.volta/bin/codex",
-    ]
+    let candidates = executableSearchDirectories().map { "\($0)/codex" }
 
     for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
       return URL(fileURLWithPath: path)
     }
     throw CodexClientError.codexNotFound
+  }
+
+  private static func processEnvironment(for executableURL: URL) -> [String: String] {
+    var environment = ProcessInfo.processInfo.environment
+    let executableDirectory = executableURL.deletingLastPathComponent().path
+    let directories = uniqueDirectories(
+      [executableDirectory] + executableSearchDirectories()
+    )
+    environment["PATH"] = directories.joined(separator: ":")
+    return environment
+  }
+
+  private static func executableSearchDirectories() -> [String] {
+    let homeURL = FileManager.default.homeDirectoryForCurrentUser
+    let environmentDirectories = ProcessInfo.processInfo.environment["PATH"]?
+      .split(separator: ":")
+      .map(String.init) ?? []
+    let commonDirectories = [
+      "/opt/homebrew/bin",
+      "/usr/local/bin",
+      homeURL.appendingPathComponent(".local/bin").path,
+      homeURL.appendingPathComponent(".npm-global/bin").path,
+      homeURL.appendingPathComponent(".bun/bin").path,
+      homeURL.appendingPathComponent(".volta/bin").path,
+      "/usr/bin",
+      "/bin",
+      "/usr/sbin",
+      "/sbin",
+    ]
+
+    let nvmVersionsURL = homeURL.appendingPathComponent(".nvm/versions/node")
+    let nvmDirectories = (try? FileManager.default.contentsOfDirectory(
+      at: nvmVersionsURL,
+      includingPropertiesForKeys: [.isDirectoryKey],
+      options: [.skipsHiddenFiles]
+    ))?.map { $0.appendingPathComponent("bin").path } ?? []
+
+    return uniqueDirectories(environmentDirectories + commonDirectories + nvmDirectories)
+  }
+
+  private static func uniqueDirectories(_ directories: [String]) -> [String] {
+    var seen = Set<String>()
+    return directories.filter { !$0.isEmpty && seen.insert($0).inserted }
   }
 }

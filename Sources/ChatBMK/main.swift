@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     guard let snapshot else { return }
 
     statusItem?.button?.title =
-      "\(activityStatus.menuBarIcon) GPT \(snapshot.session5Hour.remainingPercent)% · ↻ "
+      "\(activityStatus.menuBarIcon) MiniGPT \(snapshot.session5Hour.remainingPercent)% · ↻ "
       + relativeTime(until: snapshot.session5Hour.resetsAt)
 
     let menu = NSMenu()
@@ -110,27 +110,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
     menu.addItem(.separator())
     menu.addItem(actionItem(title: "↻ Làm mới", action: #selector(refreshUsage)))
-    menu.addItem(actionItem(title: "Thoát GPT", action: #selector(quitApplication)))
+    menu.addItem(actionItem(title: "Thoát MiniGPT", action: #selector(quitApplication)))
 
     statusItem?.menu = menu
   }
 
   private func showLoadingState() {
-    statusItem?.button?.title = "⚪️ GPT · Đang tải…"
+    statusItem?.button?.title = "⚪️ MiniGPT · Đang tải…"
 
     let menu = NSMenu()
     menu.autoenablesItems = false
     menu.delegate = self
     menu.addItem(labelItem(title: "⏳ Đang đọc thông tin từ Codex…"))
     menu.addItem(.separator())
-    menu.addItem(actionItem(title: "Thoát GPT", action: #selector(quitApplication)))
+    menu.addItem(actionItem(title: "Thoát MiniGPT", action: #selector(quitApplication)))
     statusItem?.menu = menu
   }
 
   private func showError(_ message: String) {
     guard snapshot == nil else { return }
 
-    statusItem?.button?.title = "⚪️ GPT · Không có dữ liệu"
+    statusItem?.button?.title = "⚪️ MiniGPT · Không có dữ liệu"
 
     let menu = NSMenu()
     menu.autoenablesItems = false
@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(labelItem(title: "Hãy cài Codex CLI rồi chạy codex để đăng nhập"))
     menu.addItem(.separator())
     menu.addItem(actionItem(title: "↻ Thử lại", action: #selector(refreshUsage)))
-    menu.addItem(actionItem(title: "Thoát GPT", action: #selector(quitApplication)))
+    menu.addItem(actionItem(title: "Thoát MiniGPT", action: #selector(quitApplication)))
     statusItem?.menu = menu
   }
 
