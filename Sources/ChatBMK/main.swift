@@ -1,74 +1,8 @@
 import AppKit
-import QuartzCore
-
-@MainActor
-final class AnimatedStatusBarView: NSView {
-  private let imageView = NSImageView()
-  private let titleLabel = NSTextField(labelWithString: "")
-
-  override init(frame frameRect: NSRect) {
-    super.init(frame: frameRect)
-    imageView.imageScaling = .scaleProportionallyUpOrDown
-    titleLabel.font = NSFont.menuBarFont(ofSize: 0)
-    addSubview(imageView)
-    addSubview(titleLabel)
-  }
-
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-
-  func update(title: String, activityStatus: CodexActivityStatus) {
-    let isRunning = activityStatus == .running
-    titleLabel.stringValue = isRunning ? title : "\(activityStatus.menuBarIcon) \(title)"
-    titleLabel.sizeToFit()
-
-    imageView.image =
-      isRunning
-      ? NSImage(
-        systemSymbolName: "gearshape.fill",
-        accessibilityDescription: "Codex đang chạy"
-      )
-      : nil
-    imageView.isHidden = !isRunning
-    imageView.frame = NSRect(x: 4, y: 3, width: 18, height: 18)
-    titleLabel.frame = NSRect(
-      x: isRunning ? 27 : 4,
-      y: 2,
-      width: titleLabel.frame.width,
-      height: 20
-    )
-    frame.size = NSSize(
-      width: titleLabel.frame.maxX + 4,
-      height: 24
-    )
-
-    imageView.wantsLayer = isRunning
-    if isRunning, let layer = imageView.layer {
-      // Giữ tâm neo ở chính giữa bánh răng để icon không bị lệch quỹ đạo.
-      layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-      layer.position = CGPoint(
-        x: imageView.frame.midX,
-        y: imageView.frame.midY
-      )
-      layer.removeAnimation(forKey: "codexGearRotation")
-
-      let rotation = CABasicAnimation(keyPath: "transform.rotation.z")
-      rotation.fromValue = 0
-      rotation.toValue = Double.pi * 2
-      rotation.duration = 1.2
-      rotation.repeatCount = .infinity
-      layer.add(rotation, forKey: "codexGearRotation")
-    } else {
-      imageView.layer?.removeAnimation(forKey: "codexGearRotation")
-    }
-  }
-}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var statusItem: NSStatusItem?
-  private var statusBarView: AnimatedStatusBarView?
   private var client: CodexAppServerClient?
   private var snapshot: CodexUsageSnapshot?
   private var refreshTimer: Timer?
@@ -77,15 +11,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var simulationTimer: Timer?
   private var isSimulatingRunning = false
   private var activityStatus = CodexActivityStatus.unavailable
+  private var gearAnimationTimer: Timer?
+  private var gearFrames: [NSImage] = []
+  private var gearFrameIndex = 0
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     let statusItem = NSStatusBar.system.statusItem(
       withLength: NSStatusItem.variableLength
     )
     self.statusItem = statusItem
-    let statusBarView = AnimatedStatusBarView(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
-    self.statusBarView = statusBarView
-    statusItem.view = statusBarView
     showLoadingState()
 
     let activityMonitor = CodexActivityMonitor { [weak self] status in
@@ -132,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     {
       isSimulatingRunning = true
       activityStatus = .running
+      renderLatestSnapshot()
       simulationTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) {
         [weak self] _ in
         Task { @MainActor in
@@ -146,6 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     refreshTimer?.invalidate()
     activityTimer?.invalidate()
     simulationTimer?.invalidate()
+    gearAnimationTimer?.invalidate()
     client?.stop()
   }
 
@@ -249,9 +185,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     title: String,
     activityStatus: CodexActivityStatus
   ) {
-    statusBarView?.update(title: title, activityStatus: activityStatus)
-    if let width = statusBarView?.frame.width {
-      statusItem?.length = width
+    guard let statusItem, let button = statusItem.button else { return }
+
+    statusItem.length = NSStatusItem.variableLength
+    let isRunning = activityStatus == .running
+    button.title = isRunning ? title : "\(activityStatus.menuBarIcon) \(title)"
+    button.imagePosition = isRunning ? .imageLeading : .noImage
+    button.imageScaling = .scaleProportionallyDown
+
+    if isRunning {
+      startGearAnimation(on: button)
+    } else {
+      stopGearAnimation()
+      button.image = nil
+    }
+  }
+
+  private func startGearAnimation(on button: NSStatusBarButton) {
+    if gearFrames.isEmpty {
+      gearFrames = makeGearFrames()
+    }
+    guard !gearFrames.isEmpty else { return }
+
+    button.image = gearFrames[gearFrameIndex]
+    guard gearAnimationTimer == nil else { return }
+
+    gearAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) {
+      [weak self] _ in
+      Task { @MainActor in
+        guard let self, let button = self.statusItem?.button, !self.gearFrames.isEmpty else {
+          return
+        }
+        self.gearFrameIndex = (self.gearFrameIndex + 1) % self.gearFrames.count
+        button.image = self.gearFrames[self.gearFrameIndex]
+      }
+    }
+  }
+
+  private func stopGearAnimation() {
+    gearAnimationTimer?.invalidate()
+    gearAnimationTimer = nil
+    gearFrameIndex = 0
+  }
+
+  private func makeGearFrames() -> [NSImage] {
+    guard let symbol = NSImage(
+      systemSymbolName: "gearshape.fill",
+      accessibilityDescription: "Codex đang chạy"
+    )?.withSymbolConfiguration(
+      NSImage.SymbolConfiguration(hierarchicalColor: .white)
+    ) else {
+      return []
+    }
+
+    let imageSize = NSSize(width: 16, height: 16)
+    return (0..<36).map { frameIndex in
+      let angle = CGFloat(frameIndex) * .pi / 18
+      return NSImage(size: imageSize, flipped: false) { rect in
+        guard let context = NSGraphicsContext.current?.cgContext else { return false }
+        context.saveGState()
+        context.translateBy(x: rect.midX, y: rect.midY)
+        context.rotate(by: angle)
+        symbol.draw(
+          in: NSRect(x: -8, y: -8, width: 16, height: 16)
+        )
+        context.restoreGState()
+        return true
+      }
     }
   }
 
@@ -278,7 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let minutes = totalMinutes % 60
 
     if days > 0 {
-      return "\(days)d \(hours)h"
+      return "\(days)d \(hours)h \(minutes)m"
     }
     if hours > 0 {
       return "\(hours)h \(minutes)m"
