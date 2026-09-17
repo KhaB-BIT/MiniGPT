@@ -10,16 +10,18 @@ APP_VERSION="${VERSION:-0.1.1}"
 DIST_DIR="$PROJECT_ROOT/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 ZIP_PATH="$DIST_DIR/$APP_NAME-$APP_VERSION-macos-universal.zip"
+ARM64_BUILD_DIR="$PROJECT_ROOT/.build-arm64"
+X86_64_BUILD_DIR="$PROJECT_ROOT/.build-x86_64"
 
 cd "$PROJECT_ROOT"
 
 echo "Building arm64 release..."
-swift build -c release --arch arm64
-ARM64_BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
+swift build --scratch-path "$ARM64_BUILD_DIR" -c release --arch arm64
+ARM64_BIN_DIR="$(swift build --scratch-path "$ARM64_BUILD_DIR" -c release --arch arm64 --show-bin-path)"
 
 echo "Building x86_64 release..."
-swift build -c release --arch x86_64
-X86_64_BIN_DIR="$(swift build -c release --arch x86_64 --show-bin-path)"
+swift build --scratch-path "$X86_64_BUILD_DIR" -c release --arch x86_64
+X86_64_BIN_DIR="$(swift build --scratch-path "$X86_64_BUILD_DIR" -c release --arch x86_64 --show-bin-path)"
 
 rm -rf "$APP_BUNDLE"
 rm -f "$ZIP_PATH"
